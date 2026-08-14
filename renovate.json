@@ -1,0 +1,22 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:recommended",
+		":timezone(Asia/Tokyo)"
+	],
+	"minimumReleaseAge": "7 days",
+	"packageRules": [
+		{
+			"description": "非 major はレビュー回数を抑えるため 1 PR にまとめる。破壊的変更は major に分離される前提",
+			"matchManagers": ["github-actions"],
+			"matchUpdateTypes": ["minor", "patch", "digest"],
+			"groupName": "GitHub Actions"
+		},
+		{
+			"description": "major は破壊的変更のレビューを分離するため個別グループにする",
+			"matchManagers": ["github-actions"],
+			"matchUpdateTypes": ["major"],
+			"groupName": "GitHub Actions (Major)"
+		}
+	]
+}
