@@ -1,0 +1,8 @@
+# Android USB テザリング (新しい Pixel は NCM、旧端末フォールバックに RNDIS)
+kmod-usb-net-cdc-ncm
+kmod-usb-net-rndis
+# iOS USB テザリング
+kmod-usb-net-ipheth
+usbmuxd
+libimobiledevice
+usbutils
