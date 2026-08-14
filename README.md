@@ -60,9 +60,23 @@ WAN ポートに LAN ケーブルを挿すだけ。iStoreOS 既定の DHCP ク�
 
 1. iPhone 側で「インターネット共有」を有効にして USB 接続する
 2. iPhone のロックを解除し「このコンピュータを信頼」を承認する
-3. `eth1` (焼き込み済みの `wan_ios` インターフェース) が DHCP で上流を取得する
+3. `eth1` (焼き込み済みの `wan_usbeth` インターフェース) が DHCP で上流を取得する
 
-繋がらないときは SSH で `ip link` を実行し、ipheth のインターフェース名が `eth1` 以外になっていないか確認する。テザリングは繋がるのに LAN 側から通信できない場合は `uci show firewall | grep -E 'wan_usb|wan_ios'` で wan ゾーンに入っているか確認する。ロック 1 時間後の切断を避けるには iOS の設定 → Face ID とパスコード →「USB アクセサリ」を許可する。
+繋がらないときは SSH で `ip link` を実行し、ipheth のインターフェース名が `eth1` 以外になっていないか確認する。テザリングは繋がるのに LAN 側から通信できない場合は `uci show firewall | grep -E 'wan_usb|wan_usbeth'` で wan ゾーンに入っているか確認する。ロック 1 時間後の切断を避けるには iOS の設定 → Face ID とパスコード →「USB アクセサリ」を許可する。
+
+### ZTE Speed USB STICK U03 (LTE スティック)
+
+1. U03 に APN を設定しておく (povo2.0 なら APN `povo.jp` / 認証なし / IPv4v6)。
+   APN 設定は U03 本体側の設定で、パソコンに直挿しして管理画面 `http://192.168.100.1`
+   から行う (ルーター経由の設定 API は改ざん防止トークンで弾かれるため非推奨)
+2. U03 を E54C の USB Type-A ポートに挿す
+3. hotplug が CD-ROM モードを検知して自動で RNDIS へ切り替え、`eth1` (`wan_usbeth`) が
+   DHCP で上流を取得する
+
+U03 は iOS と同じ `eth1` に来るため `wan_usbeth` を共用する (排他利用のみ想定)。
+切り替わらない場合は `usbmode -s -c /etc/u03-mode.json` を手動実行し、`dmesg` で
+`rndis_host ... eth1` が出るか確認する。`network_type` が `LIMITED_SERVICE` のままなら
+APN 未設定 (手順 1) を疑う。
 
 ## カスタマイズ
 

@@ -1,0 +1,11 @@
+# Speed USB STICK U03 (ZTE MF871 系) を CD-ROM モードから RNDIS へ切り替える。
+# 標準 /etc/usb-mode.json に 19d2:1484 の定義が無く自動切替されないため、
+# 挿入検知で独自定義 (/etc/u03-mode.json) の切替メッセージを送る。
+
+[ "$ACTION" = "add" ] || return 0
+
+case "$PRODUCT" in
+    19d2/1484/*)
+        usbmode -s -c /etc/u03-mode.json
+        ;;
+esac

@@ -1,26 +1,26 @@
 #!/bin/sh
 # LAN アドレスと USB テザリング上流用インターフェースの定義。
 # RJ45 WAN (port3) は iStoreOS 既定設定のまま使うためここでは触らない。
-# wan_ios の eth1 は、E54C の 4 ポートが内蔵スイッチ (rtl8367b) + eth0 の
-# 1 本にまとまっており、ipheth が次番号の eth1 を取る前提。
+# eth1 は、E54C の 4 ポートが内蔵スイッチ (rtl8367b) + eth0 の 1 本にまとまって
+# おり、USB イーサ (iOS ipheth / ZTE RNDIS など) が次番号の eth1 を取る前提。
 
 uci -q batch <<EOF
 set network.lan.ipaddr='192.168.50.1'
 set network.wan_usb=interface
 set network.wan_usb.device='usb0'
 set network.wan_usb.proto='dhcp'
-set network.wan_ios=interface
-set network.wan_ios.device='eth1'
-set network.wan_ios.proto='dhcp'
+set network.wan_usbeth=interface
+set network.wan_usbeth.device='eth1'
+set network.wan_usbeth.proto='dhcp'
 EOF
 
 # firewall の wan ゾーンは index 固定ではないため name='wan' で探す
 wan_zone=$(uci show firewall | sed -n "s/^firewall\.\(@zone\[[0-9]*\]\)\.name='wan'$/\1/p" | head -n1)
 if [ -n "$wan_zone" ]; then
     uci -q del_list firewall."$wan_zone".network='wan_usb'
-    uci -q del_list firewall."$wan_zone".network='wan_ios'
+    uci -q del_list firewall."$wan_zone".network='wan_usbeth'
     uci add_list firewall."$wan_zone".network='wan_usb'
-    uci add_list firewall."$wan_zone".network='wan_ios'
+    uci add_list firewall."$wan_zone".network='wan_usbeth'
 fi
 
 uci commit network
