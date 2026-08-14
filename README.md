@@ -4,11 +4,9 @@ Radxa E54C 用の iStoreOS SD カードイメージを GitHub Actions でビル�
 
 iStoreOS 公式配布の ImageBuilder ([fw.koolcenter.com](https://fw.koolcenter.com/iStoreOS/ib/rk3xxx/)) に、USB テザリング上流 (Android / iOS) 用のパッケージと初期設定を焼き込んだイメージを生成する。
 
-## イメージのビルド
+## イメージの入手
 
-1. Actions タブ → `build-e54c-image` → **Run workflow** を実行する
-2. 完了後、workflow run の Artifacts から `istoreos-e54c-image` をダウンロードする (retention 7 日)
-3. 展開すると `istoreos-*-radxa_e54c-squashfs-*.img.gz` が得られる
+main への push をトリガーに自動でビルドされ、[Releases](../../releases) に CalVer タグ (`vYYYY.MM.DD-HHMM`、JST) で公開される。最新リリースの Assets から `istoreos-*-radxa_e54c-squashfs-*.img.gz` をダウンロードする。
 
 ## SD カードへの焼き込み
 
@@ -83,4 +81,4 @@ APN 未設定 (手順 1) を疑う。
 - 同梱パッケージ: `packages.txt` (1 行 1 パッケージ、`#` でコメント)
 - 焼き込みファイル: `files/` 配下がそのまま rootfs に重なる。初期設定は `files/etc/uci-defaults/` のスクリプトで行う (初回ブート時に 1 回実行され、成功すると削除される)
 
-変更を push して workflow を再実行すればイメージに反映される。秘匿値 (パスワード・鍵) はこのリポジトリに焼き込まないこと。
+変更を main に push すると自動でビルドされ、新しいリリースとして公開される。秘匿値 (パスワード・鍵) はこのリポジトリに焼き込まないこと。

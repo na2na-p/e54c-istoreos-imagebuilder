@@ -1,0 +1,64 @@
+# ImageBuilder tarball はバージョン番号を含まない mutable URL で配布されるため、
+# ビルドごとに上流の sha256sums を取得してキャッシュキーと検証の両方に使う
+# (上流更新時は自動でキャッシュミスして最新を取り直す)。
+name: build-and-verify-image
+description: iStoreOS ImageBuilder で Radxa E54C 用 SD イメージをビルドし、内容を検証する
+
+runs:
+  using: composite
+  steps:
+    - name: Install build dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends build-essential libncurses-dev zstd squashfs-tools
+
+    - name: Fetch upstream checksum
+      id: checksum
+      shell: bash
+      run: |
+        curl -fsSL -o sha256sums https://fw.koolcenter.com/iStoreOS/ib/rk3xxx/sha256sums
+        echo "key=$(sha256sum sha256sums | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache ImageBuilder tarball
+      id: cache-ib
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: imagebuilder.tar.zst
+        key: imagebuilder-rk3xxx-${{ steps.checksum.outputs.key }}
+
+    - name: Download ImageBuilder
+      if: steps.cache-ib.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl -fsSL -o imagebuilder.tar.zst \
+          https://fw.koolcenter.com/iStoreOS/ib/rk3xxx/istoreos-imagebuilder-rockchip-armv8.Linux-x86_64.tar.zst
+
+    - name: Verify checksum
+      shell: bash
+      run: |
+        expected=$(grep 'istoreos-imagebuilder-rockchip-armv8' sha256sums | cut -d' ' -f1)
+        actual=$(sha256sum imagebuilder.tar.zst | cut -d' ' -f1)
+        if [ "$expected" != "$actual" ]; then
+          echo "checksum mismatch: expected=$expected actual=$actual" >&2
+          exit 1
+        fi
+
+    - name: Extract ImageBuilder
+      shell: bash
+      run: |
+        tar --use-compress-program=unzstd -xf imagebuilder.tar.zst
+        mv istoreos-imagebuilder-* imagebuilder
+
+    - name: Build image
+      shell: bash
+      run: |
+        packages=$(grep -v '^#' packages.txt | xargs)
+        cp -r files imagebuilder/files
+        cd imagebuilder
+        make image PROFILE=radxa_e54c PACKAGES="$packages" FILES=files
+        ls -la bin/targets/rockchip/armv8/
+
+    - name: Smoke test image contents
+      shell: bash
+      run: ./.github/actions/build-and-verify-image/smoke-test.sh

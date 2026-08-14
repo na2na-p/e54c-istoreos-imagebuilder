@@ -1,0 +1,40 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+# CalVer タグは分単位のため、並行 run が同一分に完走するとタグが衝突する。
+# queue で直列化して衝突を構造的に避ける。実行中の run は完走させるが、
+# pending は最新 1 本しか保持されないため、連続 push では中間 commit の
+# リリースがスキップされ得る (後続リリースが内容を包含するため許容)
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and verify image
+        uses: ./.github/actions/build-and-verify-image
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # queue 待ちした run が古い時刻を引かないよう、採番はジョブ先頭でなくここで行う
+          tag="v$(TZ=Asia/Tokyo date +%Y.%m.%d-%H%M)"
+          gh release create "${tag}" \
+            --target "${GITHUB_SHA}" \
+            --title "${tag}" \
+            --generate-notes \
+            imagebuilder/bin/targets/rockchip/armv8/*.img.gz
