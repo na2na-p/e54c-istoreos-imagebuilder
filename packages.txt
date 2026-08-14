@@ -1,3 +1,6 @@
+# iStoreOS ホーム UI / ネットワークウィザード (ImageBuilder のプロファイル既定には含まれない)
+quickstart
+luci-app-quickstart
 # Android USB テザリング (新しい Pixel は NCM、旧端末フォールバックに RNDIS)
 kmod-usb-net-cdc-ncm
 kmod-usb-net-rndis
