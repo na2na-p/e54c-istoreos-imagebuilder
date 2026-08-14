@@ -1,3 +1,7 @@
+# LuCI 本体 + Web サーバー (uhttpd)。プロファイル既定には luci-app-* しか無く
+# luci メタパッケージを明示しないと Web UI が一切立たない
+luci
+luci-theme-argon
 # iStoreOS ホーム UI / ネットワークウィザード (ImageBuilder のプロファイル既定には含まれない)
 quickstart
 luci-app-quickstart
