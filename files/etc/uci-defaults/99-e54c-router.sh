@@ -1,10 +1,11 @@
 #!/bin/sh
-# USB テザリング上流用インターフェース定義。
+# LAN アドレスと USB テザリング上流用インターフェースの定義。
 # RJ45 WAN (port3) は iStoreOS 既定設定のまま使うためここでは触らない。
 # wan_ios の eth1 は、E54C の 4 ポートが内蔵スイッチ (rtl8367b) + eth0 の
 # 1 本にまとまっており、ipheth が次番号の eth1 を取る前提。
 
 uci -q batch <<EOF
+set network.lan.ipaddr='192.168.50.1'
 set network.wan_usb=interface
 set network.wan_usb.device='usb0'
 set network.wan_usb.proto='dhcp'
