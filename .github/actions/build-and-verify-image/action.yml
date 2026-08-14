@@ -1,8 +1,8 @@
 # ImageBuilder tarball はバージョン番号を含まない mutable URL で配布されるため、
 # ビルドごとに上流の sha256sums を取得してキャッシュキーと検証の両方に使う
 # (上流更新時は自動でキャッシュミスして最新を取り直す)。
-name: build-image
-description: iStoreOS ImageBuilder で Radxa E54C 用 SD イメージをビルドする
+name: build-and-verify-image
+description: iStoreOS ImageBuilder で Radxa E54C 用 SD イメージをビルドし、内容を検証する
 
 runs:
   using: composite
@@ -61,4 +61,4 @@ runs:
 
     - name: Smoke test image contents
       shell: bash
-      run: ./.github/actions/build-image/smoke-test.sh
+      run: ./.github/actions/build-and-verify-image/smoke-test.sh
