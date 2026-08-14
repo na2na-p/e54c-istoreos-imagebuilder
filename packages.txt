@@ -13,3 +13,6 @@ kmod-usb-net-ipheth
 usbmuxd
 libimobiledevice
 usbutils
+# ZTE Speed USB STICK U03 (CD-ROM モードから RNDIS へ切り替え)
+usb-modeswitch
+kmod-usb-net-cdc-ether
