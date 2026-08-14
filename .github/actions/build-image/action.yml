@@ -11,7 +11,7 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends build-essential libncurses-dev zstd
+        sudo apt-get install -y --no-install-recommends build-essential libncurses-dev zstd squashfs-tools
 
     - name: Fetch upstream checksum
       id: checksum
@@ -58,3 +58,7 @@ runs:
         cd imagebuilder
         make image PROFILE=radxa_e54c PACKAGES="$packages" FILES=files
         ls -la bin/targets/rockchip/armv8/
+
+    - name: Smoke test image contents
+      shell: bash
+      run: ./.github/actions/build-image/smoke-test.sh
