@@ -54,14 +54,14 @@ jobs:
             shell:
               - "files/etc/uci-defaults/**"
               - "files/etc/hotplug.d/**"
-              - ".github/actions/build-image/smoke-test.sh"
+              - ".github/actions/build-and-verify-image/smoke-test.sh"
             json:
               - "files/**"
             renovate-config:
               - "renovate.json"
             build:
               - ".github/workflows/release.yml"
-              - ".github/actions/build-image/**"
+              - ".github/actions/build-and-verify-image/**"
               - "packages.txt"
               - "files/**"
 
@@ -97,7 +97,7 @@ jobs:
           shellcheck -s sh \
             files/etc/uci-defaults/99-e54c-router.sh \
             files/etc/hotplug.d/usb/30-u03-modeswitch \
-            .github/actions/build-image/smoke-test.sh
+            .github/actions/build-and-verify-image/smoke-test.sh
 
   json:
     timeout-minutes: 10
@@ -139,8 +139,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Build image
-        uses: ./.github/actions/build-image
+      - name: Build and verify image
+        uses: ./.github/actions/build-and-verify-image
 
   # required check はこのジョブ 1 本のみ (ruleset で ci-summary を指定)。skipped は成功扱い
   ci-summary:
