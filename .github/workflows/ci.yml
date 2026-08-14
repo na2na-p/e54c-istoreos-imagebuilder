@@ -1,0 +1,172 @@
+# workflow レベルの paths: は意図的に付けない (対象外パスのみの PR で required check が
+# pending のまま残るのを防ぐ。判定は detect-changes で行い、対象外なら各ジョブが skip される)。
+# カテゴリジョブを追加したら ci-summary の needs にも必ず追加すること
+# (漏れるとそのジョブが失敗しても ci-summary が緑になりマージをブロックできない)。
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  detect-changes:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # paths-filter が PR の変更ファイル一覧を PR files API から取得するために必要
+      pull-requests: read
+    outputs:
+      global: ${{ steps.filter.outputs.global }}
+      github-actions: ${{ steps.filter.outputs.github-actions }}
+      shell: ${{ steps.filter.outputs.shell }}
+      json: ${{ steps.filter.outputs.json }}
+      renovate-config: ${{ steps.filter.outputs.renovate-config }}
+      build: ${{ steps.filter.outputs.build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          # global: この workflow 自身の変更は全カテゴリの実行条件・手順に影響し得るため、
+          # 影響範囲を絞らず安全側に倒して全ジョブを実行する
+          filters: |
+            global:
+              - ".github/workflows/ci.yml"
+            github-actions:
+              - ".github/workflows/**"
+              - ".github/actions/**"
+            shell:
+              - "files/etc/uci-defaults/**"
+              - "files/etc/hotplug.d/**"
+            json:
+              - "files/**"
+            renovate-config:
+              - "renovate.json"
+            build:
+              - ".github/workflows/release.yml"
+              - ".github/actions/build-image/**"
+              - "packages.txt"
+              - "files/**"
+
+  github-actions:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.global == 'true' || needs.detect-changes.outputs.github-actions == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: actionlint
+        uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color
+
+  shell:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.global == 'true' || needs.detect-changes.outputs.shell == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+      - name: shellcheck
+        # hotplug.d 配下は shebang なし (hotplug-call に source される) のため、
+        # 拡張子や shebang による自動検出に頼らず対象を明示列挙し、-s sh で方言も明示する
+        run: |
+          shellcheck -s sh \
+            files/etc/uci-defaults/99-e54c-router.sh \
+            files/etc/hotplug.d/usb/30-u03-modeswitch
+
+  json:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.global == 'true' || needs.detect-changes.outputs.json == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate JSON files
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            echo "Validating ${file}"
+            jq empty "${file}"
+            count=$((count + 1))
+          done < <(git ls-files -z -- 'files/*.json')
+          echo "Validated ${count} JSON file(s)."
+
+  renovate-config:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.global == 'true' || needs.detect-changes.outputs.renovate-config == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate renovate config
+        # ファイル名を引数に渡すと global config として検証され、repo config では
+        # 使えない設定を見逃すため、引数なしで cwd の renovate.json を検証させる
+        run: npx --yes --package renovate -c 'renovate-config-validator --strict'
+
+  build:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.global == 'true' || needs.detect-changes.outputs.build == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build image
+        uses: ./.github/actions/build-image
+
+  # required check はこのジョブ 1 本のみ (ruleset で ci-summary を指定)。skipped は成功扱い
+  ci-summary:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+      - github-actions
+      - shell
+      - json
+      - renovate-config
+      - build
+    if: always()
+    steps:
+      - name: Check all job results
+        env:
+          DETECT_RESULT: ${{ needs.detect-changes.result }}
+          HAS_BAD_RESULT: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          echo "${NEEDS_JSON}"
+          # detect-changes 自体の失敗は全カテゴリ skip を招くため、偽緑にならないようガードする
+          if [[ "${DETECT_RESULT}" != "success" ]]; then
+            echo "::error::detect-changes did not succeed (${DETECT_RESULT})."
+            exit 1
+          fi
+          if [[ "${HAS_BAD_RESULT}" == "true" ]]; then
+            echo "::error::One or more upstream jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All upstream jobs succeeded or were skipped."
