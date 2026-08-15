@@ -16,3 +16,7 @@ usbutils
 # ZTE Speed USB STICK U03 (CD-ROM モードから RNDIS へ切り替え)
 usb-modeswitch
 kmod-usb-net-cdc-ether
+# 上りシェーピング (バッファブロート対策)。sch_cake はモジュール構成のため
+# kmod-sched-cake を明示しないとイメージに入らず tc が qdisc を認識できない
+kmod-sched-cake
+tc-tiny

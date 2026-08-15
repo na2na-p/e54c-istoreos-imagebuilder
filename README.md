@@ -76,6 +76,14 @@ U03 は iOS と同じ `eth1` に来るため `wan_usbeth` を共用する (排�
 `rndis_host ... eth1` が出るか確認する。`network_type` が `LIMITED_SERVICE` のままなら
 APN 未設定 (手順 1) を疑う。
 
+## 上りシェーピング (配信向け)
+
+USB テザリング上流 (`wan_usb` / `wan_usbeth`) の ifup 時に、egress へ cake qdisc を自動適用する (バッファブロート対策)。上限は `/etc/cake-upload.conf` の `BANDWIDTH` (焼き込み値 8mbit = 映像 6Mbps + 音声 + オーバーヘッド + ヘッドルーム)。空にするとシェーピングは掛からない。有線 WAN は対象外。
+
+値は「配信ビットレート < `BANDWIDTH` < 上りの実効帯域」を満たす必要がある。実効帯域を上回る値にするとキューが上流機器側の深いバッファに移り、シェーピングが効かなくなる。逆に上りが配信ビットレートを下回るほど細ったときは qdisc では救えないため、エンコーダ側の動的ビットレート調整と併用する。
+
+適用状態は SSH で `tc qdisc show dev eth1` (または `usb0`)、ログは `logread -e cake-upload` で確認できる。
+
 ## カスタマイズ
 
 - 同梱パッケージ: `packages.txt` (1 行 1 パッケージ、`#` でコメント)

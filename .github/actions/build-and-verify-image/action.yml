@@ -50,6 +50,54 @@ runs:
         tar --use-compress-program=unzstd -xf imagebuilder.tar.zst
         mv istoreos-imagebuilder-* imagebuilder
 
+    - name: Fetch packages missing from the ImageBuilder
+      # ImageBuilder 同梱の Packages はサブセットで tc を含まない。feed 自体を足すと
+      # 既定パッケージの依存解決まで変わる (dnsmasq-full が lite 版に差し替わる等) ため、
+      # 必要な ipk だけを取り込む。ImageBuilder は packages/ の更新を検知して index を
+      # 再生成・再署名するので、置くだけで通常のパッケージとして解決される。
+      # feed URL は上流のベース更新に追従できるよう ImageBuilder 自身のメタデータから
+      # 組み立てる (固定値だと上流更新後も古い feed を指し続けても気づけない)
+      shell: bash
+      env:
+        EXTRA_PACKAGES: tc-tiny
+      run: |
+        set -euo pipefail
+        cd imagebuilder
+        repo_template=$(sed -n 's/^CONFIG_VERSION_REPO="\(.*\)"$/\1/p' .config)
+        arch=$(sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"$/\1/p' .config)
+        version=$(sed -n 's/^CONFIG_VERSION_NUMBER="\(.\+\)"$/\1/p' .config)
+        # .config が空なら include/version.mk の既定値が使われる
+        if [ -z "${version}" ]; then
+          version=$(sed -n 's/^VERSION_NUMBER:=$(if $(VERSION_NUMBER),$(VERSION_NUMBER),\(.*\))$/\1/p' include/version.mk)
+        fi
+        if [ -z "${repo_template}" ] || [ -z "${arch}" ]; then
+          echo "failed to derive feed URL (repo=${repo_template} arch=${arch})" >&2
+          exit 1
+        fi
+        # 上流が version.mk の記述形を変えると make 式がそのまま採れるため、
+        # 空でないことだけでなく数字始まりであることまで確かめる
+        case "${version}" in
+          [0-9]*) ;;
+          *)
+            echo "derived version does not look like a version number: ${version}" >&2
+            exit 1
+            ;;
+        esac
+        feed="${repo_template//%V/${version}}/packages/${arch}/base"
+        echo "source feed: ${feed}"
+        curl -fsSL "${feed}/Packages.gz" | gunzip > /tmp/feed-index
+        for pkg in ${EXTRA_PACKAGES}; do
+          stanza=$(awk -v p="${pkg}" 'BEGIN{RS="";FS="\n"} $0 ~ "(^|\n)Package: "p"(\n|$)" {print; exit}' /tmp/feed-index)
+          filename=$(printf '%s\n' "${stanza}" | sed -n 's/^Filename: //p')
+          checksum=$(printf '%s\n' "${stanza}" | sed -n 's/^SHA256sum: //p')
+          if [ -z "${filename}" ] || [ -z "${checksum}" ]; then
+            echo "${pkg} not found in feed index" >&2
+            exit 1
+          fi
+          curl -fsSL -o "packages/${filename}" "${feed}/${filename}"
+          echo "${checksum}  packages/${filename}" | sha256sum -c
+        done
+
     - name: Build image
       shell: bash
       run: |
