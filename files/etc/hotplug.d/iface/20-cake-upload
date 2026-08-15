@@ -1,0 +1,27 @@
+# USB テザリング上流の ifup 時に egress へ cake を掛ける。上りが飽和した際の
+# キューを LTE 側機器の深いバッファでなくルーター側に作らせ、配信 (RTMP/SRT) の
+# レイテンシ暴発を防ぐ。sqm-scripts を使わないのは iStoreOS の feed に依存欠落が
+# あり導入不能なため。有線 WAN (wan) は通常運用を絞らないよう対象外にしている。
+# 下り (ingress) は配信安定性への寄与が小さいわりに ifb が要るため掛けない。
+
+[ "$ACTION" = "ifup" ] || return 0
+
+case "$INTERFACE" in
+    wan_usb|wan_usbeth)
+        ;;
+    *)
+        return 0
+        ;;
+esac
+
+# shellcheck disable=SC1091 # 実機にのみ存在するパスのため静的解析では追跡しない
+[ -f /etc/cake-upload.conf ] && . /etc/cake-upload.conf
+[ -n "$BANDWIDTH" ] || return 0
+
+[ -n "$DEVICE" ] || return 0
+
+if tc qdisc replace dev "$DEVICE" root cake bandwidth "$BANDWIDTH"; then
+    logger -t cake-upload "applied cake bandwidth $BANDWIDTH on $DEVICE ($INTERFACE)"
+else
+    logger -t cake-upload -p daemon.err "failed to apply cake on $DEVICE ($INTERFACE)"
+fi
