@@ -16,3 +16,9 @@ usbutils
 # ZTE Speed USB STICK U03 (CD-ROM モードから RNDIS へ切り替え)
 usb-modeswitch
 kmod-usb-net-cdc-ether
+# USB WiFi ドングル (ELECOM WDC-433SU2M2BK = RTL8821AU) による AP。
+# out-of-tree の kmod-rtl8812au-ct も同じ USB ID を持つが、mac80211 上で
+# hostapd がそのまま使える mainline rtw88 系を選び、両方は入れない (ID を取り合う)
+kmod-rtw88-8821au
+wpad-basic-mbedtls
+iw

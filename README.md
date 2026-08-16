@@ -2,7 +2,7 @@
 
 Radxa E54C 用の iStoreOS SD カードイメージを GitHub Actions でビルドするリポジトリ。
 
-iStoreOS 公式配布の ImageBuilder ([fw.koolcenter.com](https://fw.koolcenter.com/iStoreOS/ib/rk3xxx/)) に、USB テザリング上流 (Android / iOS) 用のパッケージと初期設定を焼き込んだイメージを生成する。
+iStoreOS 公式配布の ImageBuilder ([fw.koolcenter.com](https://fw.koolcenter.com/iStoreOS/ib/rk3xxx/)) に、USB テザリング上流 (Android / iOS) 用のパッケージと初期設定、および USB WiFi ドングルで AP を立てるためのパッケージを焼き込んだイメージを生成する。
 
 ## イメージの入手
 
@@ -75,6 +75,17 @@ U03 は iOS と同じ `eth1` に来るため `wan_usbeth` を共用する (排�
 切り替わらない場合は `usbmode -s -c /etc/u03-mode.json` を手動実行し、`dmesg` で
 `rndis_host ... eth1` が出るか確認する。`network_type` が `LIMITED_SERVICE` のままなら
 APN 未設定 (手順 1) を疑う。
+
+## 無線 AP (USB WiFi ドングル)
+
+ELECOM WDC-433SU2M2BK (Realtek RTL8821AU、USB ID `056e:400e`) を USB Type-A ポートに挿すと、mainline の rtw88 ドライバ (`kmod-rtw88-8821au`) がバインドして無線 PHY (`phy0`) が現れ、hotplug が `/etc/config/wireless` に `radio0` を自動生成する (初期状態は無効・暗号化なし)。この時点ではネットワークインターフェースはまだ無く、有効化後に `phy0-ap0` として生成される。SSID とパスフレーズはイメージに焼き込まないため、初回は LuCI で設定する。
+
+1. LuCI → Network → Wireless で `radio0` の Edit を開く
+2. Advanced Settings で Country Code を `JP` にする (既定の world regdomain のままだと 5GHz は AP を開始できないチャンネル扱いになる)
+3. Interface Configuration で Mode=Access Point、Network=`lan`、ESSID を入力し、Wireless Security で Encryption (WPA2-PSK/WPA3-SAE Mixed Mode) と Key を設定して保存
+4. 一覧の Enable を押す
+
+確認は SSH で `iw list | grep -A8 'Supported interface modes'` (AP が含まれること)、`iw dev` (`phy0-ap0` が `type AP` であること)、`dmesg | grep -i rtw_8821au` (firmware ロード成否)、`logread -e hostapd` (`AP-ENABLED`)。rtw88 の USB デバイスは AP モードで長時間運転すると応答しなくなる報告 (kernel 6.6 系、[lwfinger/rtw88#322](https://github.com/lwfinger/rtw88/issues/322)) があり、症状が出た場合は `wifi down; wifi up` で復帰する。安定運用が最優先なら OpenWrt で実績の多い MediaTek mt76 系 (`kmod-mt76x2u` など) のドングルへの置き換えも選択肢に入る。
 
 ## カスタマイズ
 
