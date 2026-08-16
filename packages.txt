@@ -22,3 +22,6 @@ kmod-usb-net-cdc-ether
 kmod-rtw88-8821au
 wpad-basic-mbedtls
 iw
+# radio の macaddr 固定に使う iwinfo。wifi-scripts の依存で入るが暗黙のため、
+# smoke test が同梱を検証できるよう明示する
+iwinfo
