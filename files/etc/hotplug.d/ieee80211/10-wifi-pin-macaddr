@@ -1,0 +1,24 @@
+# Rockchip (RK3582) はカーネルの USB ルートハブ番号 (usbN) が再起動のたびに
+# ずれることがあり、無線設定側 (wifi-scripts) は同じ物理ポートでも path の
+# 照合 (サフィックス一致。usbN が変わると成立しない) でしか既存デバイスを
+# 認識できないため、再起動のたびに新しい
+# radioN が作られ、LuCI で設定したはずの AP が無効なまま取り残される。
+# mac80211.uc / mac80211.sh はどちらも macaddr が設定されていれば path より
+# 先にそれで一致判定するため、初回検出時にハードウェア MAC を焼き込んで
+# 以後の再起動でも同じ radio として認識されるようにする。
+
+[ "$ACTION" = "add" ] || return 0
+
+changed=
+for section in $(uci show wireless 2>/dev/null | sed -n "s/^wireless\.\(radio[0-9]\+\)=wifi-device$/\1/p"); do
+    [ -n "$(uci -q get wireless."$section".macaddr)" ] && continue
+    path="$(uci -q get wireless."$section".path)"
+    [ -n "$path" ] || continue
+    phy="$(iwinfo nl80211 phyname "path=$path" 2>/dev/null)"
+    [ -n "$phy" ] || continue
+    hwaddr="$(cat "/sys/class/ieee80211/$phy/macaddress" 2>/dev/null)"
+    [ -n "$hwaddr" ] || continue
+    uci set wireless."$section".macaddr="$hwaddr"
+    changed=1
+done
+[ -n "$changed" ] && uci commit wireless

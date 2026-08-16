@@ -85,7 +85,9 @@ ELECOM WDC-433SU2M2BK (Realtek RTL8821AU、USB ID `056e:400e`) を USB Type-A �
 3. Interface Configuration で Mode=Access Point、Network=`lan`、ESSID を入力し、Wireless Security で Encryption (WPA2-PSK/WPA3-SAE Mixed Mode) と Key を設定して保存
 4. 一覧の Enable を押す
 
-設定後は、起動時に挿さっていても、起動後に挿しても、同じ起動中に抜き差ししても hotplug で自動的に AP が上がる (wifi-scripts 既定は起動後の初回 add しか `wifi up` しないため、2 回目以降を `files/etc/hotplug.d/ieee80211/11-wifi-replug` で拾っている)。radio0 の設定は USB ポートのパスに紐づくので、別のポートに挿すと新しい radio として認識され設定は引き継がれない。
+設定後は、起動時に挿さっていても、起動後に挿しても、同じ起動中に抜き差ししても hotplug で自動的に AP が上がる (wifi-scripts 既定は起動後の初回 add しか `wifi up` しないため、2 回目以降を `files/etc/hotplug.d/ieee80211/11-wifi-replug` で拾っている)。
+
+E54C (Rockchip RK3582) は USB ルートハブのバス番号が再起動のたびにずれることがあり、`radio0` の設定は既定では USB パス (`option path`) で照合するため、番号がずれるとドングルを挿し直したときと同様に「別デバイス」として `radio1`、`radio2`… が新規作成され、最初に設定した AP が迷子になる。`files/etc/hotplug.d/ieee80211/10-wifi-pin-macaddr` が初回検出時にハードウェア MAC アドレスを `radio0` に焼き込む (`option macaddr`) と、以後は自動検出時に MAC アドレスが最優先で照合されるためこの問題を避けられる。既に `radio1` 等が増えてしまっている場合は、SSID の入った本来のセクション以外を LuCI またはコマンドラインで削除し、残したセクションを有効化すること。
 
 確認は SSH で `iw list | grep -A8 'Supported interface modes'` (AP が含まれること)、`iw dev` (`phy0-ap0` が `type AP` であること)、`dmesg | grep -i rtw_8821au` (firmware ロード成否)、`logread -e hostapd` (`AP-ENABLED`)。rtw88 の USB デバイスは AP モードで長時間運転すると応答しなくなる報告 (kernel 6.6 系、[lwfinger/rtw88#322](https://github.com/lwfinger/rtw88/issues/322)) があり、症状が出た場合は `wifi down; wifi up` で復帰する。安定運用が最優先なら OpenWrt で実績の多い MediaTek mt76 系 (`kmod-mt76x2u` など) のドングルへの置き換えも選択肢に入る。
 
