@@ -1,0 +1,10 @@
+# USB WiFi ドングルを同じ起動中に挿し直したときも AP を上げ直す。
+# wifi-scripts 同梱の 11-wifi-up-oneshot は /tmp/.wifi-up を目印に
+# 「起動後の初回 add」しか wifi up しないため、2 回目以降の add はここで拾う。
+# ファイル名は oneshot (11-wifi-up-oneshot) より先に走る並びにしてある。初回は
+# フラグが無いので何もせず oneshot に任せ、二重に wifi up しない。
+
+[ "$ACTION" = "add" ] || return 0
+[ -f /tmp/.wifi-up ] || return 0
+
+/sbin/wifi up
